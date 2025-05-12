@@ -1,0 +1,147 @@
+/* Dashboard Custom Styles */
+
+/* General Styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-title {
+    color: #495057;
+    font-weight: 600;
+}
+
+/* Status Cards */
+.display-4 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+/* Agent Status */
+.agent-card {
+    border-left: 4px solid #6c757d;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.agent-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.agent-card.active {
+    border-color: #28a745;
+}
+
+.agent-card.inactive {
+    border-color: #dc3545;
+}
+
+.agent-status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.agent-details {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Tasks Styling */
+.task-item {
+    padding: 1rem;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+    margin-bottom: 0.75rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.task-item:hover {
+    background-color: #e9ecef;
+}
+
+.task-title {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.task-agent {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.task-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Logs Container */
+.logs-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-time {
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.log-type {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background-color: #6c757d;
+    margin: 0 0.25rem;
+}
+
+.log-type.task_start {
+    background-color: #28a745;
+}
+
+.log-type.task_complete {
+    background-color: #17a2b8;
+}
+
+.log-type.task_assignment {
+    background-color: #007bff;
+}
+
+.log-type.resource_usage {
+    background-color: #fd7e14;
+}
+
+.log-type.error {
+    background-color: #dc3545;
+}
+
+/* Refresh Button Animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.refreshing {
+    animation: spin 1s linear infinite;
+}

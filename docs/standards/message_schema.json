@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Communication Message",
+  "type": "object",
+  "required": ["message_id", "from_agent", "to_agent", "message_type", "content", "timestamp"],
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "description": "Unique identifier for this message"
+    },
+    "from_agent": {
+      "type": "string",
+      "description": "The agent sending this message"
+    },
+    "to_agent": {
+      "type": "string",
+      "description": "The agent receiving this message"
+    },
+    "message_type": {
+      "type": "string",
+      "enum": ["task_assignment", "status_update", "question", "review", "approval", "rejection"],
+      "description": "Type of message being sent"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "urgent"],
+      "default": "medium",
+      "description": "Priority level of this message"
+    },
+    "content": {
+      "type": "object",
+      "description": "Content depends on message_type"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time when message was created"
+    }
+  }
+}

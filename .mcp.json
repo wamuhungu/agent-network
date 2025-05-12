@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "permissions": {
+    "git": {
+      "enabled": true,
+      "operations": ["status", "add", "commit", "branch", "checkout", "pull", "push", "log", "diff"]
+    },
+    "filesystem": {
+      "read": true,
+      "write": true
+    }
+  },
+  "git": {
+    "user": {
+      "name": "ClaudeCode Agent",
+      "email": "agent-network@example.com"
+    },
+    "commit": {
+      "sign_off": true,
+      "template": "{{type}}: {{summary}}\n\n{{body}}\n\nTask: {{task_id}}\n\n🤖 Generated with Claude Code"
+    }
+  },
+  "agent_network": {
+    "commit_behavior": {
+      "developer": {
+        "require_approval": true,
+        "auto_create_pr": false
+      },
+      "manager": {
+        "require_approval": false,
+        "auto_create_pr": true
+      }
+    },
+    "branch_naming": "{{agent}}/{{task_id}}/{{summary}}",
+    "default_branch": "main"
+  }
+}

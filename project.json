@@ -1,0 +1,40 @@
+{
+  "name": "agent-network",
+  "version": "0.1.0",
+  "description": "A network of Claude Code agents working collaboratively",
+  "agents": [
+    {
+      "id": "manager",
+      "role": "Project coordinator and task assigner",
+      "responsibilities": [
+        "Requirements breakdown",
+        "Task assignment",
+        "Code review",
+        "Project planning"
+      ]
+    },
+    {
+      "id": "developer",
+      "role": "Code implementation and testing",
+      "responsibilities": [
+        "Feature implementation",
+        "Bug fixing",
+        "Test writing",
+        "Documentation"
+      ]
+    }
+  ],
+  "communication_protocols": {
+    "message_schema": "docs/standards/message_schema.json",
+    "message_directory": ".comms/"
+  },
+  "monitoring": {
+    "log_directory": ".logs/",
+    "metrics_tracked": [
+      "task_completion_time",
+      "token_usage",
+      "code_quality",
+      "human_interventions"
+    ]
+  }
+}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Network Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="bg-dark text-white p-3">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-robot me-2"></i>Agent Network Dashboard</h1>
+                <div class="d-flex align-items-center">
+                    <div id="last-updated-time" class="me-3">Last updated: <span>-</span></div>
+                    <button id="refresh-button" class="btn btn-outline-light">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid py-4">
+        <!-- Status Overview Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Agents</h5>
+                        <p id="total-agents" class="display-4">-</p>
+                        <p class="text-muted">Active in the network</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Active Tasks</h5>
+                        <p id="active-tasks" class="display-4">-</p>
+                        <p class="text-muted">Currently in progress</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Completed Tasks</h5>
+                        <p id="completed-tasks" class="display-4">-</p>
+                        <p class="text-muted">Successfully finished</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Tokens Used</h5>
+                        <p id="total-tokens" class="display-4">-</p>
+                        <p id="estimated-cost" class="text-muted">Estimated cost: $-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Left Column: Status and Resource Usage -->
+            <div class="col-md-6">
+                <!-- Agent Status Panel -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Agent Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="agent-status-container">
+                            <p class="text-center">Loading agent status data...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resource Usage Charts -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Resource Usage</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <h5>Token Usage by Agent</h5>
+                                <canvas id="token-usage-chart"></canvas>
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <h5>Task Completion Rate</h5>
+                                <canvas id="completion-rate-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Tasks and Logs -->
+            <div class="col-md-6">
+                <!-- Tasks Panel with Tabs -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="task-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="active-tab" data-bs-toggle="tab" href="#active" role="tab" aria-controls="active" aria-selected="true">Active Tasks</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="completed-tab" data-bs-toggle="tab" href="#completed" role="tab" aria-controls="completed" aria-selected="false">Completed Tasks</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="task-tabs-content">
+                            <div class="tab-pane fade show active" id="active" role="tabpanel" aria-labelledby="active-tab">
+                                <div id="active-tasks-list">
+                                    <p class="text-center">Loading active tasks...</p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                                <div id="completed-tasks-list">
+                                    <p class="text-center">Loading completed tasks...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Logs Panel -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Recent Activity Logs</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="recent-logs-container" class="logs-container">
+                            <p class="text-center">Loading recent logs...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light p-3 mt-4">
+        <div class="container-fluid text-center">
+            <p class="mb-0">Agent Network Dashboard &copy; 2025</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
