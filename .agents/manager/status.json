@@ -1,0 +1,25 @@
+{
+  "agent_id": "manager",
+  "agent_type": "manager", 
+  "status": "active",
+  "session_id": "1748281577_5f8964f9",
+  "start_time": "2025-05-26T20:46:17+03:00",
+  "last_activity": "2025-05-26T20:46:17+03:00",
+  "capabilities": [
+    "task_assignment",
+    "task_coordination",
+    "resource_allocation", 
+    "progress_monitoring",
+    "conflict_resolution",
+    "project_planning"
+  ],
+  "current_tasks": [],
+  "completed_tasks": [],
+  "communication_channels": [
+    ".comms/"
+  ],
+  "log_file": ".logs/manager.log",
+  "pid": 99116,
+  "version": "1.0.0"
+}
+EOF < /dev/null
