@@ -1,0 +1,41 @@
+{
+  "message_type": "task_assignment",
+  "task_id": "task_20250526_205203_webserver_routing",
+  "from_agent": "manager",
+  "to_agent": "developer",
+  "timestamp": "2025-05-26T20:52:03+03:00",
+  "priority": "medium",
+  "status": "assigned",
+  "task": {
+    "description": "Implement basic routing system for dynamic requests",
+    "requirements": [
+      "Create route registration system",
+      "Support path parameters and query strings",
+      "Implement route matching with wildcards",
+      "Add middleware support for request processing",
+      "Support different HTTP methods per route"
+    ],
+    "deliverables": [
+      "Route registration and matching system",
+      "Path parameter extraction",
+      "Query string parsing",
+      "Middleware framework",
+      "Route handler examples and tests"
+    ],
+    "context": {
+      "file_location": "src/webserver/",
+      "router_file": "src/webserver/router.py",
+      "middleware_file": "src/webserver/middleware.py"
+    }
+  },
+  "metadata": {
+    "created_by": "manager",
+    "assigned_to": "developer",
+    "estimated_effort": "1.5 hours",
+    "dependencies": ["task_20250526_205201_webserver_core"],
+    "tags": ["routing", "middleware", "dynamic"],
+    "parent_task": "task_20250526_205200_webserver_main",
+    "order": 3
+  }
+}
+EOF < /dev/null

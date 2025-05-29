@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Web Server</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Welcome to SimpleWebServer</h1>
+            <p class="subtitle">A lightweight HTTP server built with Python</p>
+        </header>
+        
+        <main>
+            <section class="features">
+                <h2>Server Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>HTTP Request Handling</h3>
+                        <p>Supports GET and POST requests with proper parsing</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Static File Serving</h3>
+                        <p>Serves HTML, CSS, JavaScript, and image files</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Basic Routing</h3>
+                        <p>Custom route handlers for dynamic content</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Error Handling</h3>
+                        <p>Comprehensive error pages and logging</p>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="api-examples">
+                <h2>API Endpoints</h2>
+                <div class="endpoint">
+                    <code>GET /hello</code>
+                    <p>Returns a JSON greeting message</p>
+                    <button onclick="testEndpoint('/hello', 'GET')">Test</button>
+                </div>
+                <div class="endpoint">
+                    <code>GET /status</code>
+                    <p>Returns server status information</p>
+                    <button onclick="testEndpoint('/status', 'GET')">Test</button>
+                </div>
+                <div class="endpoint">
+                    <code>POST /hello</code>
+                    <p>Accepts JSON data and returns response</p>
+                    <button onclick="testPostEndpoint()">Test</button>
+                </div>
+            </section>
+            
+            <section class="response-area">
+                <h3>API Response</h3>
+                <pre id="response-output">Click on a test button to see API responses here...</pre>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 SimpleWebServer - Built for the Agent Network Project</p>
+        </footer>
+    </div>
+    
+    <script src="js/main.js"></script>
+</body>
+</html>

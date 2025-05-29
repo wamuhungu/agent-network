@@ -215,6 +215,8 @@ except Exception as e:
             echo "  • Wait for manager to assign new tasks"
             echo "  • Run this command again in a few minutes"
             echo "  • Check .comms/ directory for new task_*.json files"
+            echo ""
+            echo "💡 Waiting for new tasks... Run /developer_work again to check, or use /auto_work to enable continuous checking"
             
             # Log no tasks available
             echo "$TIMESTAMP [WORK] No tasks available" >> .logs/developer.log

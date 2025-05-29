@@ -1,0 +1,41 @@
+{
+  "message_type": "task_assignment",
+  "task_id": "task_20250526_205202_webserver_static",
+  "from_agent": "manager",
+  "to_agent": "developer",
+  "timestamp": "2025-05-26T20:52:02+03:00",
+  "priority": "medium",
+  "status": "assigned",
+  "task": {
+    "description": "Implement static file serving functionality",
+    "requirements": [
+      "Add static file handler for common file types",
+      "Implement MIME type detection",
+      "Add directory listing capability",
+      "Support for index.html default files",
+      "Implement file caching headers"
+    ],
+    "deliverables": [
+      "Static file handler class",
+      "MIME type mapping system",
+      "Directory listing generator",
+      "Cache control headers",
+      "Tests for file serving functionality"
+    ],
+    "context": {
+      "file_location": "src/webserver/",
+      "handler_file": "src/webserver/static_handler.py",
+      "public_directory": "public/"
+    }
+  },
+  "metadata": {
+    "created_by": "manager",
+    "assigned_to": "developer",
+    "estimated_effort": "1 hour",
+    "dependencies": ["task_20250526_205201_webserver_core"],
+    "tags": ["static-files", "mime", "caching"],
+    "parent_task": "task_20250526_205200_webserver_main",
+    "order": 2
+  }
+}
+EOF < /dev/null

@@ -1,0 +1,97 @@
+{
+  "message_id": "msg_001",
+  "from_agent": "manager",
+  "to_agent": "developer",
+  "message_type": "task_assignment",
+  "priority": "high",
+  "timestamp": "2025-05-11T08:30:00.000Z",
+  "content": {
+    "task_id": "TASK-001",
+    "title": "Implement Basic Agent Monitoring Dashboard",
+    "description": "Create a simple web-based dashboard for monitoring the agent network. This dashboard will provide visibility into agent status, resource usage, and task completion metrics.",
+    "requirements": [
+      "Create a web server using Flask",
+      "Implement a dashboard UI using HTML, CSS (Bootstrap), and JavaScript",
+      "Integrate with the existing AgentMonitor class in tools/monitor.py",
+      "Provide real-time updates of agent status",
+      "Display resource usage statistics and visualizations",
+      "Show a list of active and completed tasks"
+    ],
+    "acceptance_criteria": [
+      "Dashboard is accessible via web browser at http://localhost:5000",
+      "All agents' status are displayed with last activity timestamp",
+      "Resource usage (tokens, compute time) is visualized with charts",
+      "Active and completed tasks are listed with their status",
+      "Data refreshes automatically every 30 seconds",
+      "Code follows the project's coding standards",
+      "Implementation includes appropriate tests"
+    ],
+    "subtasks": [
+      {
+        "id": "TASK-001.1",
+        "title": "Set up basic Flask application with routes",
+        "description": "Create a basic Flask application with necessary routes for the dashboard, API endpoints, and static assets.",
+        "estimated_effort": "2 hours"
+      },
+      {
+        "id": "TASK-001.2",
+        "title": "Create dashboard UI with Bootstrap",
+        "description": "Implement the frontend UI using Bootstrap for responsive design, including layouts for agent status, resource usage charts, and task lists.",
+        "estimated_effort": "3 hours"
+      },
+      {
+        "id": "TASK-001.3",
+        "title": "Integrate with AgentMonitor",
+        "description": "Connect the Flask app with the AgentMonitor class to retrieve real-time data about agent activities and resource usage.",
+        "estimated_effort": "2 hours"
+      },
+      {
+        "id": "TASK-001.4",
+        "title": "Implement data visualization",
+        "description": "Add charts and visualizations for resource usage using Chart.js or a similar library.",
+        "estimated_effort": "2 hours"
+      },
+      {
+        "id": "TASK-001.5",
+        "title": "Add automatic data refresh",
+        "description": "Implement JavaScript functionality to refresh dashboard data every 30 seconds without full page reload.",
+        "estimated_effort": "1 hour"
+      },
+      {
+        "id": "TASK-001.6",
+        "title": "Write tests and documentation",
+        "description": "Create unit tests for both backend and frontend components, and write documentation for running and using the dashboard.",
+        "estimated_effort": "2 hours"
+      }
+    ],
+    "resources": [
+      {
+        "type": "file",
+        "url": "/tools/monitor.py",
+        "description": "Existing AgentMonitor class for tracking agent activities"
+      },
+      {
+        "type": "documentation",
+        "url": "/docs/standards/coding_standards.md",
+        "description": "Project coding standards to follow"
+      },
+      {
+        "type": "reference",
+        "url": "https://flask.palletsprojects.com/",
+        "description": "Flask documentation"
+      },
+      {
+        "type": "reference",
+        "url": "https://getbootstrap.com/docs/5.3/",
+        "description": "Bootstrap documentation"
+      },
+      {
+        "type": "reference",
+        "url": "https://www.chartjs.org/docs/latest/",
+        "description": "Chart.js documentation for data visualization"
+      }
+    ],
+    "deadline": "2025-05-18T17:00:00.000Z",
+    "dependencies": []
+  }
+}
