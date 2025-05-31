@@ -29,50 +29,97 @@ TASK_DESCRIPTION="$1"
 TASK_ID="task_$(date +%Y%m%d_%H%M%S)_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 6)"
 TIMESTAMP=$(date -Iseconds)
 
-# Create task message file
-TASK_FILE=".comms/${TASK_ID}.json"
+# Send task message to RabbitMQ developer-queue
+echo "$(date -Iseconds) [TASK_CREATE] Sending task to RabbitMQ developer-queue..." >> .logs/manager.log
 
-# Generate structured JSON message
-cat > "$TASK_FILE" << EOF
-{
-  "message_type": "task_assignment",
-  "task_id": "$TASK_ID",
-  "from_agent": "manager",
-  "to_agent": "developer",
-  "timestamp": "$TIMESTAMP",
-  "priority": "normal",
-  "status": "assigned",
-  "task": {
-    "description": "$TASK_DESCRIPTION",
-    "requirements": [
-      "Implement the requested functionality",
-      "Write comprehensive tests",
-      "Create or update documentation",
-      "Follow coding standards in docs/standards/",
-      "Ensure code quality and maintainability"
-    ],
-    "deliverables": [
-      "Working implementation",
-      "Test coverage",
-      "Documentation updates",
-      "Code review ready"
-    ],
-    "context": {
-      "project_root": ".",
-      "coding_standards": "docs/standards/coding_standards.md",
-      "test_directory": "tests/",
-      "documentation_directory": "docs/"
+# Create and send task message via RabbitMQ
+python3 -c "
+import sys
+import json
+from datetime import datetime
+
+# Add tools directory to Python path
+sys.path.append('tools')
+
+try:
+    from message_broker import send_task_to_developer
+    
+    # Create task message
+    task_message = {
+        'message_type': 'task_assignment',
+        'task_id': '$TASK_ID',
+        'from_agent': 'manager',
+        'to_agent': 'developer',
+        'timestamp': '$TIMESTAMP',
+        'priority': 'normal',
+        'status': 'assigned',
+        'task': {
+            'description': '$TASK_DESCRIPTION',
+            'requirements': [
+                'Implement the requested functionality',
+                'Write comprehensive tests',
+                'Create or update documentation',
+                'Follow coding standards in docs/standards/',
+                'Ensure code quality and maintainability'
+            ],
+            'deliverables': [
+                'Working implementation',
+                'Test coverage',
+                'Documentation updates',
+                'Code review ready'
+            ],
+            'context': {
+                'project_root': '.',
+                'coding_standards': 'docs/standards/coding_standards.md',
+                'test_directory': 'tests/',
+                'documentation_directory': 'docs/'
+            }
+        },
+        'metadata': {
+            'created_by': 'manager',
+            'assigned_to': 'developer',
+            'estimated_effort': 'TBD',
+            'dependencies': [],
+            'tags': []
+        }
     }
-  },
-  "metadata": {
-    "created_by": "manager",
-    "assigned_to": "developer",
-    "estimated_effort": "TBD",
-    "dependencies": [],
-    "tags": []
-  }
-}
-EOF
+    
+    # Send message to developer queue
+    success = send_task_to_developer(task_message)
+    
+    if success:
+        print('✅ Task sent successfully to developer-queue')
+        with open('.logs/manager.log', 'a') as f:
+            f.write('$(date -Iseconds) [TASK_SEND] Task $TASK_ID sent to developer-queue successfully\n')
+    else:
+        print('❌ Failed to send task to developer-queue')
+        print('💡 Make sure RabbitMQ is running (use: project:start_message_broker)')
+        with open('.logs/manager.log', 'a') as f:
+            f.write('$(date -Iseconds) [ERROR] Failed to send task $TASK_ID to developer-queue\n')
+        sys.exit(1)
+        
+except ImportError as e:
+    print('❌ RabbitMQ message broker not available')
+    print(f'Error: {e}')
+    print('💡 Install pika: pip install pika')
+    print('💡 Start RabbitMQ: project:start_message_broker')
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ Error sending task: {e}')
+    with open('.logs/manager.log', 'a') as f:
+        f.write('$(date -Iseconds) [ERROR] Task send error: $e\n')
+    sys.exit(1)
+"
+
+# Check if message sending was successful
+if [ $? -eq 0 ]; then
+    MESSAGE_SENT=true
+else
+    MESSAGE_SENT=false
+    echo "❌ TASK CREATION FAILED"
+    echo "Task could not be sent to developer queue"
+    exit 1
+fi
 
 # Log task creation
 if [ ! -f .logs/manager.log ]; then
@@ -116,11 +163,11 @@ except Exception as e:
 fi
 
 # Display confirmation
-echo "✅ TASK CREATED SUCCESSFULLY"
+echo "✅ TASK SENT TO DEVELOPER QUEUE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Task ID: $TASK_ID"
 echo "Description: $TASK_DESCRIPTION"
-echo "File: $TASK_FILE"
+echo "Sent to: RabbitMQ developer-queue"
 echo "Timestamp: $TIMESTAMP"
 echo ""
 echo "📋 STANDARD REQUIREMENTS INCLUDED:"
@@ -130,7 +177,8 @@ echo "  • Create/update documentation"
 echo "  • Follow coding standards"
 echo "  • Ensure code quality"
 echo ""
-echo "🎯 TASK READY FOR DEVELOPER PICKUP"
+echo "🎯 TASK DELIVERED TO DEVELOPER"
+echo "📬 Developer will be notified immediately"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 ```
 
@@ -144,10 +192,11 @@ The command creates JSON messages with this structure:
 - `task.deliverables`: Expected outputs
 - `metadata`: Additional task tracking information
 
-## Files Created
-- `.comms/{TASK_ID}.json`: Task assignment message
+## Actions Performed
+- Sends task message to RabbitMQ developer-queue
 - Log entry in `.logs/manager.log`
 - Updated `.agents/manager/status.json` with current task
+- Immediate delivery to developer via message broker
 
 ## Example
 ```bash
