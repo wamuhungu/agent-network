@@ -1,14 +1,14 @@
 {
   "agent_id": "manager",
-  "agent_type": "manager", 
+  "agent_type": "manager",
   "status": "active",
-  "session_id": "1748281577_5f8964f9",
-  "start_time": "2025-05-26T20:46:17+03:00",
-  "last_activity": "2025-05-26T20:46:17+03:00",
+  "session_id": "1748760119_",
+  "start_time": "2025-06-01T09:41:59+03:00",
+  "last_activity": "2025-06-01T09:41:59+03:00",
   "capabilities": [
     "task_assignment",
-    "task_coordination",
-    "resource_allocation", 
+    "task_coordination", 
+    "resource_allocation",
     "progress_monitoring",
     "conflict_resolution",
     "project_planning"
@@ -16,10 +16,14 @@
   "current_tasks": [],
   "completed_tasks": [],
   "communication_channels": [
-    ".comms/"
+    "rabbitmq:manager-queue"
   ],
+  "message_broker": {
+    "enabled": true,
+    "queue_name": "manager-queue",
+    "status": "initializing"
+  },
   "log_file": ".logs/manager.log",
-  "pid": 99116,
+  "pid": 79259,
   "version": "1.0.0"
 }
-EOF < /dev/null

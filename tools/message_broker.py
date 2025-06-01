@@ -57,6 +57,8 @@ class MessageBroker:
     # Queue names for different agent types
     MANAGER_QUEUE = 'manager-queue'
     DEVELOPER_QUEUE = 'developer-queue'
+    MANAGER_REQUIREMENTS_QUEUE = 'manager-requirements-queue'
+    WORK_REQUEST_QUEUE = 'work-request-queue'
     
     # Exchange name for direct messaging
     EXCHANGE_NAME = 'agent-exchange'
@@ -171,7 +173,8 @@ class MessageBroker:
         )
         
         # Declare queues with specific properties
-        queues = [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE]
+        queues = [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE, 
+                 self.MANAGER_REQUIREMENTS_QUEUE, self.WORK_REQUEST_QUEUE]
         
         for queue_name in queues:
             self.channel.queue_declare(
@@ -249,6 +252,19 @@ class MessageBroker:
             return False
         
         return False
+    
+    def send_message(self, queue_name: str, message: Dict[str, Any]) -> bool:
+        """
+        Alias for publish_message for backward compatibility.
+        
+        Args:
+            queue_name: Target queue name
+            message: Message dictionary to send
+            
+        Returns:
+            True if message sent successfully, False otherwise.
+        """
+        return self.publish_message(queue_name, message)
     
     def start_consuming(self, queue_name: str, callback: Callable[[Dict[str, Any]], None]):
         """
@@ -428,7 +444,8 @@ class MessageBroker:
         }
         
         # Get queue information
-        for queue_name in [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE]:
+        for queue_name in [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE, 
+                          self.MANAGER_REQUIREMENTS_QUEUE, self.WORK_REQUEST_QUEUE]:
             queue_info = self.get_queue_info(queue_name)
             if queue_info:
                 status['queues'][queue_name] = queue_info

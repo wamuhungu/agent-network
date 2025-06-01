@@ -1,10 +1,10 @@
 {
   "agent_id": "developer",
   "agent_type": "developer",
-  "status": "ready",
-  "session_id": "1748291295_9f5062f6",
-  "start_time": "2025-05-26T23:28:15+03:00",
-  "last_activity": "2025-05-26T23:59:52+03:00",
+  "status": "active",
+  "session_id": "1748728330_",
+  "start_time": "2025-06-01T00:52:10+03:00",
+  "last_activity": "2025-06-01T00:52:10+03:00",
   "capabilities": [
     "code_implementation",
     "software_development",
@@ -14,22 +14,21 @@
     "system_integration"
   ],
   "current_tasks": [],
-  "completed_tasks": [
-    {
-      "task_id": "task_20250526_234635_webserver_main",
-      "completed_at": "2025-05-26T23:59:52+03:00",
-      "description": "Implement a simple web server with basic HTTP functionality"
-    }
-  ],
+  "completed_tasks": [],
   "communication_channels": [
-    ".comms/"
+    "rabbitmq:developer-queue"
   ],
+  "message_broker": {
+    "enabled": true,
+    "queue_name": "developer-queue",
+    "status": "initializing"
+  },
   "log_file": ".logs/developer.log",
-  "pid": 57839,
+  "pid": 49541,
   "version": "1.0.0",
   "development_tools": [
     "python",
-    "javascript",
+    "javascript", 
     "html_css",
     "flask",
     "git"
