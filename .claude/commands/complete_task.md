@@ -1,9 +1,14 @@
 # Complete Task Command
 
-Mark a task as completed and notify the manager agent.
+Mark a task as completed in the database and notify the manager agent via RabbitMQ.
 
 ## Purpose
-Creates a completion message for the manager, updates developer status, archives the original task, and logs the completion.
+Integrates database state management with message queue operations to:
+- Update task state to 'completed' in database
+- Update agent state back to 'ready'
+- Log completion activity with duration and results
+- Archive completed task data
+- Send completion notification to manager
 
 ## Usage
 ```bash
@@ -27,38 +32,8 @@ TASK_ID="$1"
 TIMESTAMP=$(date -Iseconds)
 COMPLETION_ID="completion_$(date +%Y%m%d_%H%M%S)_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 6)"
 
-# Check if task exists in current developer status
-TASK_EXISTS=$(python3 -c "
-import json
-import sys
-
-try:
-    with open('.agents/developer/status.json', 'r') as f:
-        status = json.load(f)
-    
-    current_tasks = status.get('current_tasks', [])
-    task_found = any(task.get('task_id') == '$TASK_ID' for task in current_tasks)
-    
-    if task_found:
-        print('true')
-    else:
-        print('false')
-except:
-    print('false')
-" 2>/dev/null)
-
-if [ "$TASK_EXISTS" = "false" ]; then
-    echo "❌ Error: Task $TASK_ID not found in current developer tasks"
-    echo "Check your current tasks with:"
-    echo "  cat .agents/developer/status.json | python3 -m json.tool"
-    exit 1
-fi
-
-# Send completion message to RabbitMQ manager-queue
-echo "$(date -Iseconds) [TASK_COMPLETE] Sending completion to RabbitMQ manager-queue..." >> .logs/developer.log
-
-# Create and send completion message via RabbitMQ
-python3 -c "
+# Validate task exists and get task details from database
+TASK_VALIDATION=$(python3 -c "
 import sys
 import json
 from datetime import datetime
@@ -67,7 +42,111 @@ from datetime import datetime
 sys.path.append('tools')
 
 try:
+    from state_manager import StateManager
+    
+    # Initialize database connection
+    sm = StateManager()
+    if not sm.is_connected():
+        print('ERROR:Database connection failed')
+        sys.exit(1)
+    
+    # Get task from database
+    task = sm.get_task('$TASK_ID')
+    if not task:
+        print('ERROR:Task not found in database')
+        sm.disconnect()
+        sys.exit(1)
+    
+    # Check if task is assigned to developer
+    if task.get('assigned_to') != 'developer':
+        print('ERROR:Task not assigned to developer')
+        sm.disconnect()
+        sys.exit(1)
+    
+    # Check if task is in valid state for completion
+    status = task.get('status')
+    if status not in ['assigned', 'in_progress']:
+        print(f'ERROR:Task cannot be completed from status: {status}')
+        sm.disconnect()
+        sys.exit(1)
+    
+    # Calculate duration if started
+    duration = None
+    if 'started_at' in task:
+        start_time = datetime.fromisoformat(task['started_at'].replace('Z', '+00:00'))
+        end_time = datetime.utcnow()
+        duration = (end_time - start_time).total_seconds()
+    
+    # Return task info for use in completion
+    task_info = {
+        'task_id': task['task_id'],
+        'title': task.get('title', 'Untitled'),
+        'assigned_by': task.get('assigned_by', 'unknown'),
+        'started_at': task.get('started_at'),
+        'duration_seconds': duration,
+        'priority': task.get('priority', 'normal')
+    }
+    
+    print(f'VALID:{json.dumps(task_info)}')
+    sm.disconnect()
+    
+except ImportError as e:
+    print(f'ERROR:Required module not available: {e}')
+    sys.exit(1)
+except Exception as e:
+    print(f'ERROR:Unexpected error: {e}')
+    sys.exit(1)
+")
+
+# Parse validation result
+if [[ "$TASK_VALIDATION" == "ERROR:"* ]]; then
+    ERROR_MSG=$(echo "$TASK_VALIDATION" | sed 's/ERROR://')
+    echo "❌ Error: $ERROR_MSG"
+    exit 1
+elif [[ "$TASK_VALIDATION" == "VALID:"* ]]; then
+    TASK_INFO=$(echo "$TASK_VALIDATION" | sed 's/VALID://')
+else
+    echo "❌ Unexpected validation result"
+    exit 1
+fi
+
+echo "$(date -Iseconds) [TASK_COMPLETE] Processing task completion for $TASK_ID..." >> .logs/developer.log
+
+# Update task state in database and send completion message
+COMPLETION_RESULT=$(python3 -c "
+import sys
+import json
+from datetime import datetime
+
+# Add tools directory to Python path
+sys.path.append('tools')
+
+try:
+    from state_manager import StateManager
     from message_broker import send_completion_to_manager
+    
+    # Parse task info
+    task_info = json.loads('$TASK_INFO')
+    
+    # Initialize database connection
+    sm = StateManager()
+    if not sm.is_connected():
+        print('ERROR:Database connection failed')
+        sys.exit(1)
+    
+    # Calculate duration for display
+    duration_str = 'N/A'
+    if task_info.get('duration_seconds'):
+        duration = task_info['duration_seconds']
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+        seconds = int(duration % 60)
+        if hours > 0:
+            duration_str = f'{hours}h {minutes}m {seconds}s'
+        elif minutes > 0:
+            duration_str = f'{minutes}m {seconds}s'
+        else:
+            duration_str = f'{seconds}s'
     
     # Create completion message
     completion_message = {
@@ -90,55 +169,157 @@ try:
             'notes': 'All requirements have been fulfilled according to coding standards',
             'files_modified': [],
             'files_created': [],
-            'next_steps': []
+            'next_steps': [],
+            'duration': duration_str
         },
         'metadata': {
             'completed_by': 'developer',
-            'effort_actual': 'TBD',
+            'effort_actual': duration_str,
             'quality_check': 'passed',
             'issues_encountered': [],
-            'recommendations': []
+            'recommendations': [],
+            'task_title': task_info.get('title'),
+            'priority': task_info.get('priority')
         }
     }
     
-    # Send message to manager queue
-    success = send_completion_to_manager(completion_message)
+    # First, update task state to 'completed' in database
+    completion_metadata = {
+        'completed_at': datetime.utcnow().isoformat(),
+        'completion_id': '$COMPLETION_ID',
+        'duration_seconds': task_info.get('duration_seconds'),
+        'deliverables_completed': True,
+        'quality_check': 'passed'
+    }
     
-    if success:
-        print('✅ Completion sent successfully to manager-queue')
-        with open('.logs/developer.log', 'a') as f:
-            f.write('$(date -Iseconds) [COMPLETE_SEND] Task $TASK_ID completion sent to manager-queue successfully\n')
-    else:
-        print('❌ Failed to send completion to manager-queue')
-        print('💡 Make sure RabbitMQ is running (use: project:start_message_broker)')
-        with open('.logs/developer.log', 'a') as f:
-            f.write('$(date -Iseconds) [ERROR] Failed to send completion $TASK_ID to manager-queue\n')
+    if not sm.update_task_state('$TASK_ID', 'completed', completion_metadata):
+        print('ERROR:Failed to update task state in database')
+        sm.disconnect()
         sys.exit(1)
+    
+    print('DB_UPDATE:Task marked as completed')
+    
+    # Log completion activity
+    sm.log_activity('developer', 'task_completed', {
+        'task_id': '$TASK_ID',
+        'completion_id': '$COMPLETION_ID',
+        'duration': duration_str,
+        'title': task_info.get('title')
+    })
+    
+    # Update developer state back to 'ready'
+    sm.update_agent_state('developer', 'ready', {
+        'last_completed_task': '$TASK_ID',
+        'last_completion_time': datetime.utcnow().isoformat()
+    })
+    
+    # Archive task data
+    completed_task = sm.get_task('$TASK_ID')
+    if completed_task:
+        # Store completion data in archived_tasks collection
+        sm.db.archived_tasks.insert_one({
+            **completed_task,
+            'archived_at': datetime.utcnow(),
+            'archive_reason': 'completed'
+        })
+        print('DB_UPDATE:Task archived')
+    
+    # Now send to RabbitMQ
+    try:
+        success = send_completion_to_manager(completion_message)
+        
+        if success:
+            print('SENT:Success')
+            
+            # Log successful send
+            sm.log_activity('developer', 'completion_sent', {
+                'task_id': '$TASK_ID',
+                'completion_id': '$COMPLETION_ID',
+                'sent_to': 'manager-queue'
+            })
+        else:
+            # If send fails, log but don't rollback database
+            print('SENT:Failed')
+            
+            sm.log_activity('developer', 'completion_send_failed', {
+                'task_id': '$TASK_ID',
+                'completion_id': '$COMPLETION_ID',
+                'error': 'Failed to send to RabbitMQ'
+            })
+            
+    except Exception as e:
+        print(f'SENT:Error:{e}')
+        
+        sm.log_activity('developer', 'completion_send_error', {
+            'task_id': '$TASK_ID',
+            'completion_id': '$COMPLETION_ID',
+            'error': str(e)
+        })
+    
+    finally:
+        sm.disconnect()
         
 except ImportError as e:
-    print('❌ RabbitMQ message broker not available')
-    print(f'Error: {e}')
-    print('💡 Install pika: pip install pika')
-    print('💡 Start RabbitMQ: project:start_message_broker')
+    print(f'ERROR:Required module not available: {e}')
     sys.exit(1)
 except Exception as e:
-    print(f'❌ Error sending completion: {e}')
-    with open('.logs/developer.log', 'a') as f:
-        f.write('$(date -Iseconds) [ERROR] Completion send error: $e\n')
+    print(f'ERROR:Unexpected error: {e}')
     sys.exit(1)
-"
+")
 
-# Check if message sending was successful
-if [ $? -eq 0 ]; then
-    MESSAGE_SENT=true
-else
-    MESSAGE_SENT=false
+# Parse the result
+if [[ "$COMPLETION_RESULT" == "ERROR:"* ]]; then
+    ERROR_MSG=$(echo "$COMPLETION_RESULT" | grep "^ERROR:" | cut -d':' -f2-)
     echo "❌ TASK COMPLETION FAILED"
-    echo "Completion could not be sent to manager queue"
+    echo "Error: $ERROR_MSG"
+    echo ""
+    echo "💡 TROUBLESHOOTING:"
+    echo "  • Check MongoDB connection: brew services list | grep mongodb"
+    echo "  • Check task status: project:agent_status"
+    echo "  • View logs: tail -20 .logs/developer.log"
     exit 1
 fi
 
-# Archive task assignment in completed directory for record keeping
+# Check database updates
+DB_UPDATES=$(echo "$COMPLETION_RESULT" | grep "^DB_UPDATE:" | wc -l)
+SEND_STATUS=$(echo "$COMPLETION_RESULT" | grep "^SENT:" | cut -d':' -f2)
+
+echo "✅ TASK COMPLETED IN DATABASE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Task ID: $TASK_ID"
+echo "Completion ID: $COMPLETION_ID"
+echo "Completed At: $TIMESTAMP"
+
+if [ "$DB_UPDATES" -ge "2" ]; then
+    echo ""
+    echo "📊 DATABASE UPDATES:"
+    echo "  ✅ Task state updated to 'completed'"
+    echo "  ✅ Task data archived"
+    echo "  ✅ Developer state updated to 'ready'"
+    echo "  ✅ Activities logged"
+fi
+
+if [[ "$SEND_STATUS" == "Success" ]]; then
+    echo ""
+    echo "📬 NOTIFICATION:"
+    echo "  ✅ Completion sent to manager-queue"
+    echo "  • Manager notified immediately"
+elif [[ "$SEND_STATUS" == "Failed" ]]; then
+    echo ""
+    echo "⚠️  NOTIFICATION:"
+    echo "  ❌ Failed to send to manager-queue"
+    echo "  • Task is completed in database"
+    echo "  • Manager notification pending"
+    echo ""
+    echo "💡 To retry notification:"
+    echo "  • Check RabbitMQ: project:start_message_broker"
+    echo "  • Resend manually if needed"
+else
+    echo ""
+    echo "⚠️  NOTIFICATION ERROR: $SEND_STATUS"
+fi
+
+# Archive task files from active directory (file system cleanup)
 mkdir -p .comms/completed
 ARCHIVED_TASK=".comms/completed/${TASK_ID}_${COMPLETION_ID}.json"
 
@@ -147,97 +328,57 @@ ACTIVE_TASK_FILE=$(find .comms/active -name "*${TASK_ID}*" -type f 2>/dev/null |
 if [ -n "$ACTIVE_TASK_FILE" ]; then
     cp "$ACTIVE_TASK_FILE" "$ARCHIVED_TASK"
     rm "$ACTIVE_TASK_FILE"
-    echo "$(date -Iseconds) [ARCHIVE] Task archived: $ARCHIVED_TASK" >> .logs/developer.log
+    echo "$(date -Iseconds) [ARCHIVE] Task file archived: $ARCHIVED_TASK" >> .logs/developer.log
 fi
 
-# Log task completion
+# Log task completion to local file (backup)
 if [ ! -f .logs/developer.log ]; then
     mkdir -p .logs
     touch .logs/developer.log
 fi
 
 echo "$(date -Iseconds) [TASK_COMPLETE] Task completed: $TASK_ID" >> .logs/developer.log
-echo "$(date -Iseconds) [INFO] Completion message: $COMPLETION_FILE" >> .logs/developer.log
-echo "$(date -Iseconds) [INFO] Task archived: $ARCHIVED_TASK" >> .logs/developer.log
+echo "$(date -Iseconds) [INFO] Database updated, task archived" >> .logs/developer.log
+echo "$(date -Iseconds) [INFO] Developer status: ready" >> .logs/developer.log
 
-# Update developer status back to ready
-if [ -f .agents/developer/status.json ]; then
-    python3 -c "
-import json
-import sys
-from datetime import datetime
-
-try:
-    with open('.agents/developer/status.json', 'r') as f:
-        status = json.load(f)
-    
-    status['status'] = 'ready'
-    status['last_activity'] = datetime.now().isoformat()
-    
-    # Remove completed task from current_tasks
-    if 'current_tasks' in status:
-        status['current_tasks'] = [t for t in status['current_tasks'] if t.get('task_id') != '$TASK_ID']
-    
-    # Add to completed_tasks
-    if 'completed_tasks' not in status:
-        status['completed_tasks'] = []
-    
-    status['completed_tasks'].append({
-        'task_id': '$TASK_ID',
-        'completed_at': '$TIMESTAMP',
-        'completion_id': '$COMPLETION_ID'
-    })
-    
-    with open('.agents/developer/status.json', 'w') as f:
-        json.dump(status, f, indent=2)
-        
-except Exception as e:
-    print(f'Warning: Could not update developer status: {e}', file=sys.stderr)
-"
-fi
-
-# Display confirmation
-echo "✅ TASK COMPLETION SENT TO MANAGER"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Task ID: $TASK_ID"
-echo "Completion ID: $COMPLETION_ID"
-echo "Completed At: $TIMESTAMP"
-echo "Sent to: RabbitMQ manager-queue"
-echo ""
-echo "📁 FILES UPDATED:"
-echo "  • Task archived: $ARCHIVED_TASK"
-echo "  • Active task removed from queue"
-echo ""
-echo "📊 STATUS UPDATES:"
-echo "  • Developer status: ready"
-echo "  • Task moved to completed list"
-echo "  • Manager notified immediately via RabbitMQ"
 echo ""
 echo "🎯 READY FOR NEXT TASK"
-echo "📬 Manager will be notified immediately"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 ```
 
-## Completion Message Format
-The command creates JSON messages with this structure:
-- `message_type`: "task_completion"
-- `completion_id`: Unique completion identifier
-- `task_id`: Reference to original task
-- `completion.deliverables_status`: Status of each requirement
-- `completion.summary`: Brief completion summary
-- `metadata`: Quality checks and recommendations
+## Features
+- Validates task exists in database and is assigned to developer
+- Updates task state to 'completed' with metadata
+- Archives task data to archived_tasks collection
+- Updates developer state back to 'ready'
+- Logs all activities to database
+- Sends completion notification to manager
+- Maintains consistency between database and message queue
 
-## Actions Performed
-1. Sends completion message to RabbitMQ manager-queue
-2. Archives original task to `.comms/completed/`
-3. Removes active task from `.comms/active/`
-4. Updates developer status to "ready"
-5. Logs completion to `.logs/developer.log`
-6. Immediate delivery to manager via message broker
+## Task Completion Flow
+1. **Validation** - Verify task exists and can be completed
+2. **Database Update** - Mark task as completed
+3. **Archive** - Move task to archived collection
+4. **State Update** - Set developer to ready
+5. **Notification** - Send to manager queue
+6. **Activity Logging** - Record all actions
+
+## Database Operations
+- Updates task state with completion metadata
+- Archives full task data for history
+- Updates developer agent state
+- Logs completion activity
+- Tracks duration if task was started
+
+## Error Handling
+- Task validation before processing
+- Database updates complete even if notification fails
+- Clear error messages for troubleshooting
+- No rollback of completed status
 
 ## Example
 ```bash
 project:complete_task "task_20241126_143022_A7F3Kx"
 ```
 
-Completes the specified task and notifies the manager.
+Completes the specified task with full database integration.
