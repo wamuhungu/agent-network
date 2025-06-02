@@ -2,12 +2,12 @@
   "agent_id": "manager",
   "agent_type": "manager",
   "status": "active",
-  "session_id": "1748760119_",
-  "start_time": "2025-06-01T09:41:59+03:00",
-  "last_activity": "2025-06-01T09:41:59+03:00",
+  "session_id": "1748762131_V",
+  "start_time": "2025-06-01T10:15:31+03:00",
+  "last_activity": "2025-06-01T10:37:06+03:00",
   "capabilities": [
     "task_assignment",
-    "task_coordination", 
+    "task_coordination",
     "resource_allocation",
     "progress_monitoring",
     "conflict_resolution",
@@ -24,6 +24,13 @@
     "status": "initializing"
   },
   "log_file": ".logs/manager.log",
-  "pid": 79259,
-  "version": "1.0.0"
+  "pid": 9070,
+  "version": "1.0.0",
+  "monitoring": {
+    "last_check": "2025-06-01T10:37:06+03:00",
+    "completions_processed": 0,
+    "requirements_found": 0,
+    "pending_tasks": 10,
+    "completed_tasks": 0
+  }
 }

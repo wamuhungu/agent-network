@@ -1,0 +1,24 @@
+# Personal Logbook Application Dependencies
+
+# Web Framework
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Database
+# SQLite is included with Python standard library
+
+# Date/Time handling (built-in)
+# datetime
+
+# File handling (built-in)  
+# pathlib
+# os
+# json
+# base64
+
+# Development and Testing (optional)
+pytest==7.4.2
+pytest-flask==1.2.0
+
+# Production deployment (optional)
+gunicorn==21.2.0

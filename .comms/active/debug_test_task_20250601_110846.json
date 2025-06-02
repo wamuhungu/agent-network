@@ -1,0 +1,10 @@
+{
+  "message_type": "task_assignment",
+  "task_id": "debug_test_task",
+  "test": true,
+  "broker_metadata": {
+    "published_at": "2025-06-01T10:53:06.293090",
+    "message_id": "ca4bb1ab-f999-47df-a960-4004a34be664",
+    "queue": "developer-queue"
+  }
+}

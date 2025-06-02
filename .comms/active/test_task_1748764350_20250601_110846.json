@@ -1,0 +1,23 @@
+{
+  "message_type": "task_assignment",
+  "task_id": "test_task_1748764350",
+  "from_agent": "manager",
+  "to_agent": "developer",
+  "timestamp": "2025-06-01T10:52:30.788042",
+  "priority": "normal",
+  "status": "assigned",
+  "task": {
+    "description": "TEST: Simple task to verify message delivery",
+    "requirements": [
+      "Test the RabbitMQ connection and message delivery"
+    ],
+    "deliverables": [
+      "Confirmation of message receipt"
+    ]
+  },
+  "broker_metadata": {
+    "published_at": "2025-06-01T10:52:30.805834",
+    "message_id": "da7a28d8-5175-4bf4-8fb3-b85b698de69e",
+    "queue": "developer-queue"
+  }
+}

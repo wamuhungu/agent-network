@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.title }} - Personal Logbook{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">{{ entry.title }}</h4>
+                <div class="text-muted">
+                    <i class="fas fa-clock"></i> {{ entry.formatted_date }}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if entry.content %}
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-file-alt"></i> Text Content
+                        </h6>
+                        <div class="border rounded p-3 bg-light">
+                            {{ entry.content|nl2br|safe }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if entry.voice_data %}
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-microphone"></i> Voice Recording
+                        </h6>
+                        <div class="border rounded p-3 bg-light">
+                            <audio controls class="w-100 mb-2">
+                                <source src="data:audio/webm;base64,{{ entry.voice_data }}" type="audio/webm">
+                                <source src="data:audio/wav;base64,{{ entry.voice_data }}" type="audio/wav">
+                                <source src="data:audio/mp3;base64,{{ entry.voice_data }}" type="audio/mp3">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Voice recording attached to this entry
+                                </small>
+                                <button class="btn btn-sm btn-outline-primary" onclick="downloadAudio()">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if not entry.content and not entry.voice_data %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-file-alt fa-3x mb-3"></i>
+                        <p>This entry appears to be empty.</p>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Logbook
+                    </a>
+                    <div>
+                        <button class="btn btn-outline-danger" onclick="deleteEntry({{ entry.id }})">
+                            <i class="fas fa-trash"></i> Delete Entry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entry Metadata -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Entry Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Entry ID:</strong> {{ entry.id }}</p>
+                        <p><strong>Created:</strong> {{ entry.formatted_date }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Has Text:</strong> 
+                            {% if entry.content %}
+                                <span class="text-success"><i class="fas fa-check"></i> Yes</span>
+                            {% else %}
+                                <span class="text-muted"><i class="fas fa-times"></i> No</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Has Voice:</strong> 
+                            {% if entry.voice_data %}
+                                <span class="text-success"><i class="fas fa-check"></i> Yes</span>
+                            {% else %}
+                                <span class="text-muted"><i class="fas fa-times"></i> No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% if entry.content %}
+                    <div class="mt-3">
+                        <p><strong>Character Count:</strong> {{ entry.content|length }}</p>
+                        <p><strong>Word Count:</strong> {{ entry.content.split()|length }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteEntry(entryId) {
+    if (confirm('Are you sure you want to delete this entry? This action cannot be undone.')) {
+        fetch(`/api/entries/${entryId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = "{{ url_for('index') }}";
+            } else {
+                alert('Error deleting entry: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting entry');
+        });
+    }
+}
+
+function downloadAudio() {
+    const audioData = "{{ entry.voice_data }}";
+    if (audioData) {
+        const link = document.createElement('a');
+        link.href = 'data:audio/wav;base64,' + audioData;
+        link.download = 'voice_recording_{{ entry.id }}.wav';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+</script>
+{% endblock %}

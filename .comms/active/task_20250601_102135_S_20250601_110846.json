@@ -1,0 +1,53 @@
+{
+  "message_type": "task_assignment",
+  "task_id": "task_20250601_102135_S",
+  "from_agent": "manager",
+  "to_agent": "developer",
+  "timestamp": "2025-06-01T10:21:35+03:00",
+  "priority": "normal",
+  "status": "assigned",
+  "task": {
+    "description": "Create a basic logbook application structure with support for creating timestamped text notes. Include a web interface with forms for adding text entries and display them in chronological order.",
+    "requirements": [
+      "Create a Flask/Python web application for the logbook",
+      "Design HTML templates for adding and viewing text notes",
+      "Implement timestamp functionality for each note entry",
+      "Add data persistence (file-based or database)",
+      "Create a clean, responsive UI for the logbook",
+      "Write comprehensive tests for the functionality",
+      "Follow coding standards in docs/standards/",
+      "Ensure code quality and maintainability"
+    ],
+    "deliverables": [
+      "Working logbook web application",
+      "HTML templates for note creation and viewing",
+      "Backend logic for storing/retrieving notes",
+      "Test coverage for all functionality",
+      "Documentation for setup and usage"
+    ],
+    "context": {
+      "project_root": ".",
+      "coding_standards": "docs/standards/coding_standards.md",
+      "test_directory": "tests/",
+      "documentation_directory": "docs/",
+      "related_to": "logbook_application"
+    }
+  },
+  "metadata": {
+    "created_by": "manager",
+    "assigned_to": "developer",
+    "estimated_effort": "4-6 hours",
+    "dependencies": [],
+    "tags": [
+      "logbook",
+      "web-app",
+      "text-notes",
+      "phase-1"
+    ]
+  },
+  "broker_metadata": {
+    "published_at": "2025-06-01T10:21:35.832774",
+    "message_id": "623ed6d6-41cd-4b5e-8fcb-57666e26285a",
+    "queue": "developer-queue"
+  }
+}
