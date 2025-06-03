@@ -1,10 +1,10 @@
 {
   "agent_id": "developer",
   "agent_type": "developer",
-  "status": "working",
-  "session_id": "1748765148_dev",
-  "start_time": "2025-06-01T11:05:48+03:00",
-  "last_activity": "2025-06-01T11:08:46.271690",
+  "status": "active",
+  "session_id": "1748948400_dev",
+  "start_time": "2025-06-03T11:00:00+03:00",
+  "last_activity": "2025-06-03T11:00:00+03:00",
   "capabilities": [
     "code_implementation",
     "software_development",
@@ -13,54 +13,13 @@
     "technical_documentation",
     "system_integration"
   ],
-  "current_tasks": [
-    {
-      "task_id": "task_20250601_102135_S",
-      "assigned_by": "manager",
-      "assigned_at": "2025-06-01T10:21:35+03:00",
-      "priority": "normal",
-      "description": "Create a basic logbook application structure with support for creating timestamped text notes. Include a web interface with forms for adding text entries and display them in chronological order."
-    },
-    {
-      "task_id": "task_20250601_102222_A1",
-      "assigned_by": "manager",
-      "assigned_at": "2025-06-01T10:22:22+03:00",
-      "priority": "normal",
-      "description": "Create a basic logbook application structure with support for creating timestamped text notes. Include a web interface with forms for adding text entries and display them in chronological order."
-    },
-    {
-      "task_id": "task_20250601_102257_A2",
-      "assigned_by": "manager",
-      "assigned_at": "2025-06-01T10:22:57+03:00",
-      "priority": "normal",
-      "description": "Add voice recording functionality to the logbook application. Implement browser-based audio recording, storage of voice notes with timestamps, and playback capabilities."
-    },
-    {
-      "task_id": "test_task_1748764350",
-      "assigned_by": "manager",
-      "assigned_at": "2025-06-01T10:52:30.788042",
-      "priority": "normal",
-      "description": "TEST: Simple task to verify message delivery"
-    },
-    {
-      "task_id": "debug_test_task",
-      "assigned_by": null,
-      "assigned_at": null,
-      "priority": "medium",
-      "description": ""
-    }
-  ],
+  "current_tasks": [],
   "completed_tasks": [],
   "communication_channels": [
     "rabbitmq:developer-queue"
   ],
-  "message_broker": {
-    "enabled": true,
-    "queue_name": "developer-queue",
-    "status": "connected"
-  },
   "log_file": ".logs/developer.log",
-  "pid": 50431,
+  "pid": 12345,
   "version": "1.0.0",
   "development_tools": [
     "python",
@@ -68,5 +27,10 @@
     "html_css",
     "flask",
     "git"
-  ]
+  ],
+  "environment": {
+    "AGENT_ID": "developer",
+    "AGENT_TYPE": "developer",
+    "AGENT_SESSION_ID": "1748948400_dev"
+  }
 }
