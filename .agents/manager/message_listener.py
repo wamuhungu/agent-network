@@ -83,7 +83,7 @@ def update_manager_status(completion_message):
         task_id = completion_message.get('task_id')
         
         # Update task status to completed
-        sm.update_task_status(task_id, 'completed')
+        sm.update_task_state(task_id, 'completed')
         
         # Log activity
         sm.log_activity('manager', 'task_completed', {

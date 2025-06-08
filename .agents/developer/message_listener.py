@@ -55,8 +55,12 @@ def handle_task_assignment(message):
                 sm.disconnect()
                 
                 if task_data:
+                    # Use task_data directly since it contains all fields at root level
                     task = task_data
                     priority = task_data.get('priority', 'medium')
+                    # Also get the priority from the message content if available
+                    if 'content' in message and 'priority' in message['content']:
+                        priority = message['content']['priority']
                 else:
                     logger.error(f"Task {task_id} not found in database")
                     return
@@ -108,7 +112,7 @@ def update_developer_status(task_message):
         task_id = task_message.get('task_id')
         
         # Update task status to in_progress
-        sm.update_task_status(task_id, 'in_progress')
+        sm.update_task_state(task_id, 'in_progress')
         
         # Log activity
         sm.log_activity('developer', 'task_received', {
