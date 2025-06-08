@@ -16,8 +16,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'tools'))
 
 try:
     from message_broker import MessageBroker, BrokerConfig
-except ImportError:
-    print("ERROR: message_broker module not found. Ensure tools/message_broker.py exists.")
+    from state_manager import StateManager
+except ImportError as e:
+    print(f"ERROR: Required module not found: {e}")
     sys.exit(1)
 
 # Setup logging
@@ -45,10 +46,24 @@ def handle_task_assignment(message):
         
         logger.info(f"Received {message_type} from {from_agent} for task {task_id}")
         
-        if message_type == 'task_assignment':
-            # Process task assignment
-            task = message.get('task', {})
-            priority = message.get('priority', 'medium')
+        if message_type in ['task_assignment', 'task_notification']:
+            # Process task assignment/notification
+            if message_type == 'task_notification':
+                # For notifications, fetch task details from MongoDB
+                sm = StateManager()
+                task_data = sm.get_task(task_id)
+                sm.disconnect()
+                
+                if task_data:
+                    task = task_data
+                    priority = task_data.get('priority', 'medium')
+                else:
+                    logger.error(f"Task {task_id} not found in database")
+                    return
+            else:
+                # For direct assignments, use message content
+                task = message.get('task', {})
+                priority = message.get('priority', 'medium')
             
             # Update developer status
             update_developer_status(message)
@@ -87,49 +102,54 @@ def handle_task_assignment(message):
 def update_developer_status(task_message):
     """Update developer status with new task assignment."""
     try:
-        with open('.agents/developer/status.json', 'r') as f:
-            status = json.load(f)
+        # Use StateManager to update status in MongoDB
+        sm = StateManager()
         
-        # Add to current tasks
-        task_info = {
-            'task_id': task_message.get('task_id'),
+        task_id = task_message.get('task_id')
+        
+        # Update task status to in_progress
+        sm.update_task_status(task_id, 'in_progress')
+        
+        # Log activity
+        sm.log_activity('developer', 'task_received', {
+            'task_id': task_id,
             'assigned_by': task_message.get('from_agent'),
             'assigned_at': task_message.get('timestamp'),
             'priority': task_message.get('priority', 'medium'),
             'description': task_message.get('task', {}).get('description', '')
-        }
+        })
         
-        status['current_tasks'].append(task_info)
-        status['last_activity'] = datetime.now().isoformat()
-        status['status'] = 'working'
+        # Update developer state
+        sm.update_agent_state('developer', 'working', {
+            'last_activity': datetime.now().isoformat(),
+            'current_task': task_id,
+            'message_broker_status': 'connected'
+        })
         
-        # Update message broker status
-        if 'message_broker' in status:
-            status['message_broker']['status'] = 'connected'
-        
-        with open('.agents/developer/status.json', 'w') as f:
-            json.dump(status, f, indent=2)
+        sm.disconnect()
             
     except Exception as e:
         logger.error(f"Error updating developer status: {e}")
 
 def archive_task_assignment(task_message):
-    """Archive the task assignment for record keeping."""
+    """Archive the task assignment in MongoDB."""
     try:
         task_id = task_message.get('task_id', 'unknown')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Create archive filename
-        archive_file = f".comms/active/{task_id}_{timestamp}.json"
+        # Use StateManager to archive in MongoDB
+        sm = StateManager()
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(archive_file), exist_ok=True)
+        # The assignment details are already stored when we update task status
+        # Just log this as an activity
+        sm.log_activity('developer', 'task_assignment_archived', {
+            'task_id': task_id,
+            'archived_at': datetime.now().isoformat(),
+            'assignment_details': task_message
+        })
         
-        # Save assignment message
-        with open(archive_file, 'w') as f:
-            json.dump(task_message, f, indent=2)
-            
-        logger.info(f"Archived task assignment to {archive_file}")
+        logger.info(f"Archived task assignment for {task_id} in MongoDB")
+        
+        sm.disconnect()
         
     except Exception as e:
         logger.error(f"Error archiving task: {e}")

@@ -16,8 +16,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'tools'))
 
 try:
     from message_broker import MessageBroker, BrokerConfig
-except ImportError:
-    print("ERROR: message_broker module not found. Ensure tools/message_broker.py exists.")
+    from state_manager import StateManager
+except ImportError as e:
+    print(f"ERROR: Required module not found: {e}")
     sys.exit(1)
 
 # Setup logging
@@ -76,47 +77,53 @@ def handle_completion_message(message):
 def update_manager_status(completion_message):
     """Update manager status with completed task information."""
     try:
-        with open('.agents/manager/status.json', 'r') as f:
-            status = json.load(f)
+        # Use StateManager to update status in MongoDB
+        sm = StateManager()
         
-        # Add to completed tasks
-        task_info = {
-            'task_id': completion_message.get('task_id'),
+        task_id = completion_message.get('task_id')
+        
+        # Update task status to completed
+        sm.update_task_status(task_id, 'completed')
+        
+        # Log activity
+        sm.log_activity('manager', 'task_completed', {
+            'task_id': task_id,
             'completed_by': completion_message.get('from_agent'),
             'completed_at': completion_message.get('timestamp'),
             'summary': completion_message.get('completion', {}).get('summary', '')
-        }
+        })
         
-        status['completed_tasks'].append(task_info)
-        status['last_activity'] = datetime.now().isoformat()
+        # Update manager state
+        sm.update_agent_state('manager', 'active', {
+            'last_activity': datetime.now().isoformat(),
+            'last_completed_task': task_id,
+            'message_broker_status': 'connected'
+        })
         
-        # Update message broker status
-        if 'message_broker' in status:
-            status['message_broker']['status'] = 'connected'
-        
-        with open('.agents/manager/status.json', 'w') as f:
-            json.dump(status, f, indent=2)
+        sm.disconnect()
             
     except Exception as e:
         logger.error(f"Error updating manager status: {e}")
 
 def archive_completed_task(completion_message):
-    """Archive the completed task for record keeping."""
+    """Archive the completed task in MongoDB."""
     try:
         task_id = completion_message.get('task_id', 'unknown')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Create archive filename
-        archive_file = f".comms/completed/{task_id}_{timestamp}.json"
+        # Use StateManager to archive in MongoDB
+        sm = StateManager()
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(archive_file), exist_ok=True)
+        # The completion details are already stored when we update task status
+        # Just log this as an activity
+        sm.log_activity('manager', 'task_archived', {
+            'task_id': task_id,
+            'archived_at': datetime.now().isoformat(),
+            'completion_details': completion_message
+        })
         
-        # Save completion message
-        with open(archive_file, 'w') as f:
-            json.dump(completion_message, f, indent=2)
-            
-        logger.info(f"Archived completion message to {archive_file}")
+        logger.info(f"Archived completion message for task {task_id} in MongoDB")
+        
+        sm.disconnect()
         
     except Exception as e:
         logger.error(f"Error archiving task: {e}")
