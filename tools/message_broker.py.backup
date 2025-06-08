@@ -161,58 +161,41 @@ class MessageBroker:
             self.logger.error(f"Error during disconnect: {e}")
     
     def _setup_infrastructure(self):
-        """Enhanced setup with proper error handling."""
+        """Setup RabbitMQ exchange and queues."""
         if not self.channel:
             raise RuntimeError("No channel available")
         
-        try:
-            # Declare exchange with error handling
-            self.channel.exchange_declare(
-                exchange=self.EXCHANGE_NAME,
-                exchange_type='direct',
-                durable=True,  # Make persistent
-                auto_delete=False
+        # Declare exchange
+        self.channel.exchange_declare(
+            exchange=self.EXCHANGE_NAME,
+            exchange_type='direct',
+            durable=False
+        )
+        
+        # Declare queues with specific properties
+        queues = [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE, 
+                 self.MANAGER_REQUIREMENTS_QUEUE, self.WORK_REQUEST_QUEUE]
+        
+        for queue_name in queues:
+            self.channel.queue_declare(
+                queue=queue_name,
+                durable=False,      # Transient - queue disappears on restart
+                exclusive=False,    # Allow multiple connections
+                auto_delete=False   # Don't auto-delete when no consumers
             )
             
-            # Verify exchange exists
-            self.channel.exchange_declare(
+            # Bind queue to exchange
+            self.channel.queue_bind(
                 exchange=self.EXCHANGE_NAME,
-                exchange_type='direct',
-                passive=True  # Just check existence
+                queue=queue_name,
+                routing_key=queue_name
             )
-            
-            # Setup queues with verification
-            queues = [self.MANAGER_QUEUE, self.DEVELOPER_QUEUE, 
-                     self.MANAGER_REQUIREMENTS_QUEUE, self.WORK_REQUEST_QUEUE]
-            
-            for queue_name in queues:
-                # Declare queue
-                self.channel.queue_declare(
-                    queue=queue_name,
-                    durable=True,     # Make persistent
-                    exclusive=False,
-                    auto_delete=False
-                )
-                
-                # Bind with explicit routing key
-                self.channel.queue_bind(
-                    exchange=self.EXCHANGE_NAME,
-                    queue=queue_name,
-                    routing_key=queue_name  # Use queue name as routing key
-                )
-                
-                # Verify binding
-                self.logger.info(f"Queue {queue_name} bound to {self.EXCHANGE_NAME}")
-                
-        except Exception as e:
-            self.logger.error(f"Infrastructure setup failed: {e}")
-            raise
         
         self.logger.info("RabbitMQ infrastructure setup complete")
     
     def publish_message(self, queue_name: str, message: Dict[str, Any]) -> bool:
         """
-        Enhanced publish with timeout and retry.
+        Publish a message to the specified queue.
         
         Args:
             queue_name: Target queue name
@@ -226,75 +209,53 @@ class MessageBroker:
             return False
         
         try:
-            # Enable delivery confirmation with timeout
-            self.channel.confirm_delivery()
-            
-            # Enhanced message with metadata
+            # Add metadata to message
             enhanced_message = {
                 **message,
                 'broker_metadata': {
                     'published_at': datetime.now().isoformat(),
                     'message_id': str(uuid.uuid4()),
-                    'queue': queue_name,
-                    'routing_key': queue_name
+                    'queue': queue_name
                 }
             }
             
+            # Serialize message
             message_body = json.dumps(enhanced_message, indent=2)
             
-            # Publish with explicit confirmation
-            try:
+            # Publish with delivery confirmation
+            if self.channel:
+                self.channel.confirm_delivery()
+                
                 success = self.channel.basic_publish(
                     exchange=self.EXCHANGE_NAME,
                     routing_key=queue_name,
                     body=message_body,
                     properties=pika.BasicProperties(
-                        delivery_mode=2,  # Persistent messages
+                        delivery_mode=1,  # Transient message
                         content_type='application/json',
                         timestamp=int(time.time())
-                    ),
-                    mandatory=True  # Return message if unroutable
+                    )
                 )
                 
                 if success:
-                    self.logger.info(f"Message confirmed delivered to {queue_name}")
+                    self.logger.info(f"Published message to {queue_name}: {enhanced_message.get('message_type', 'unknown')}")
                     return True
                 else:
-                    self.logger.warning(f"Message delivery not confirmed for {queue_name}")
+                    self.logger.error(f"Failed to confirm delivery to {queue_name}")
                     return False
-                    
-            except pika.exceptions.UnroutableError:
-                self.logger.error(f"Message unroutable to {queue_name} - check queue binding")
-                return False
-                
+            
+        except pika.exceptions.UnroutableError:
+            self.logger.error(f"Message unroutable to queue {queue_name}")
+            return False
         except Exception as e:
-            self.logger.error(f"Publish error for {queue_name}: {e}")
+            self.logger.error(f"Error publishing message to {queue_name}: {e}")
             return False
         
         return False
     
-    def _publish_direct(self, queue_name: str, message: Dict[str, Any]) -> bool:
-        """Direct queue publishing without exchange."""
-        try:
-            message_body = json.dumps(message)
-            result = self.channel.basic_publish(
-                exchange='',  # Default exchange
-                routing_key=queue_name,
-                body=message_body,
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Persistent
-                    content_type='application/json'
-                )
-            )
-            self.logger.info(f"Direct publish successful to {queue_name}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Direct publish failed to {queue_name}: {e}")
-            return False
-
     def send_message(self, queue_name: str, message: Dict[str, Any]) -> bool:
         """
-        Enhanced send with fallback to direct publishing.
+        Alias for publish_message for backward compatibility.
         
         Args:
             queue_name: Target queue name
@@ -303,29 +264,7 @@ class MessageBroker:
         Returns:
             True if message sent successfully, False otherwise.
         """
-        # Validate connection state
-        if not self.is_connected or not self.channel or self.channel.is_closed:
-            self.logger.warning("Connection lost, attempting reconnect...")
-            if not self.connect():
-                self.logger.error("Failed to reconnect")
-                return False
-        
-        # Validate queue exists
-        try:
-            self.channel.queue_declare(queue=queue_name, passive=True)
-        except pika.exceptions.ChannelClosedByBroker:
-            self.logger.error(f"Queue {queue_name} does not exist")
-            return False
-        except Exception as e:
-            self.logger.warning(f"Queue validation failed for {queue_name}: {e}")
-        
-        # Try exchange-based first
-        success = self.publish_message(queue_name, message)
-        if not success:
-            self.logger.warning(f"Exchange-based publish failed for {queue_name}, trying direct publish...")
-            # Fallback to direct queue publishing
-            return self._publish_direct(queue_name, message)
-        return success
+        return self.publish_message(queue_name, message)
     
     def start_consuming(self, queue_name: str, callback: Callable[[Dict[str, Any]], None]):
         """
