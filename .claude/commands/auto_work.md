@@ -34,19 +34,32 @@ while [ "$CONTINUE_CHECKING" = true ]; do
     # Run developer work check
     bash -c "$(cat .claude/commands/developer_work.md | sed -n '/```bash/,/```/p' | sed '1d;$d')"
     
-    # Check if a task was picked up by looking for "New task started" in status
+    # Check if a task was picked up by querying MongoDB
     TASK_PICKED_UP=$(python3 -c "
-import json
-try:
-    with open('.agents/developer/status.json', 'r') as f:
-        status = json.load(f)
-    current_tasks = status.get('current_tasks', [])
-    if current_tasks:
-        print('true')
+import sys
+sys.path.append('/Users/abdelr/Projects/claudecode/agent-network')
+from src.services.database import DatabaseService
+import asyncio
+
+async def check_task_status():
+    db = DatabaseService()
+    
+    # Check developer status
+    dev_state = await db.agent_states.find_one({'agent_name': 'developer'})
+    if dev_state and dev_state.get('status') == 'working':
+        # Check for active tasks
+        active_tasks = await db.tasks.count_documents({
+            'assigned_to': 'developer',
+            'status': 'in_progress'
+        })
+        if active_tasks > 0:
+            print('true')
+        else:
+            print('false')
     else:
         print('false')
-except:
-    print('false')
+
+asyncio.run(check_task_status())
 " 2>/dev/null)
     
     if [ "$TASK_PICKED_UP" = "true" ]; then
@@ -136,9 +149,9 @@ echo "  • Run /complete_task \"TASK_ID\" when current task is finished"
 
 ## Integration
 - Runs the full `/developer_work` command internally
+- Checks MongoDB for developer status and active tasks
 - Respects all existing work states and logic
 - Logs activities through standard developer work logging
-- Updates status files through normal work cycle process
 
 ## Example Session
 ```

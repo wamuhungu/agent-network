@@ -28,22 +28,38 @@ echo ""
 echo "✅ SINGLE CHECK COMPLETED"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Check final status and provide guidance
+# Check final status from MongoDB
 FINAL_STATUS=$(python3 -c "
-import json
-try:
-    with open('.agents/developer/status.json', 'r') as f:
-        data = json.load(f)
-    status = data.get('status', 'unknown')
-    current_tasks = data.get('current_tasks', [])
-    if current_tasks and status == 'working':
+import sys
+sys.path.append('/Users/abdelr/Projects/claudecode/agent-network')
+from src.services.database import DatabaseService
+import asyncio
+
+async def check_developer_status():
+    db = DatabaseService()
+    
+    # Get developer state from MongoDB
+    dev_state = await db.agent_states.find_one({'agent_name': 'developer'})
+    if not dev_state:
+        print('uninitialized')
+        return
+        
+    status = dev_state.get('status', 'unknown')
+    
+    # Check for active tasks
+    active_tasks = await db.tasks.count_documents({
+        'assigned_to': 'developer',
+        'status': 'in_progress'
+    })
+    
+    if active_tasks > 0 and status == 'working':
         print('working')
     elif status in ['ready', 'idle', 'active']:
         print('ready')
     else:
         print(status)
-except:
-    print('unknown')
+
+asyncio.run(check_developer_status())
 " 2>/dev/null)
 
 case "$FINAL_STATUS" in
@@ -74,7 +90,7 @@ case "$FINAL_STATUS" in
         echo "❓ UNKNOWN STATUS: $FINAL_STATUS"
         echo ""
         echo "💡 NEXT STEPS:"
-        echo "  • Check .agents/developer/status.json"
+        echo "  • Check MongoDB agent_states collection"
         echo "  • Consider running /become_developer"
         ;;
 esac
@@ -111,8 +127,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 ## Integration
 - Uses the same core logic as `/developer_work`
+- Checks MongoDB for developer status and active tasks
 - Respects all work states and task assignment logic
-- Updates status files normally
 - Logs activities through standard developer work logging
 
 ## Example Output

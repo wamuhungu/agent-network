@@ -225,7 +225,7 @@ def handle_task_assignment(message: Dict[str, Any], db_changes: Dict[str, Any]) 
         if activity_id:
             db_changes['activities_logged'].append(activity_id)
         
-        # Archive task assignment
+        # Archive task assignment in MongoDB
         if not archive_task_assignment(message):
             logger.warning("Failed to archive task assignment")
             # Non-critical, don't fail the transaction
@@ -324,7 +324,7 @@ def handle_resource_allocation(message: Dict[str, Any], db_changes: Dict[str, An
 
 def archive_task_assignment(task_message: Dict[str, Any]) -> bool:
     """
-    Archive the task assignment for record keeping.
+    Archive the task assignment in MongoDB for record keeping.
     
     Args:
         task_message: Task message to archive
@@ -334,19 +334,23 @@ def archive_task_assignment(task_message: Dict[str, Any]) -> bool:
     """
     try:
         task_id = task_message.get('task_id', 'unknown')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Create archive filename
-        archive_file = f".comms/active/{task_id}_{timestamp}.json"
+        # Archive in MongoDB's task_archives collection
+        archive_data = {
+            **task_message,
+            'archived_at': datetime.utcnow(),
+            'archive_type': 'task_assignment',
+            'archived_by': 'developer'
+        }
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(archive_file), exist_ok=True)
+        result = state_manager.db.task_archives.insert_one(archive_data)
         
-        # Save assignment message
-        with open(archive_file, 'w') as f:
-            json.dump(task_message, f, indent=2)
-            
-        logger.info(f"Archived task assignment to {archive_file}")
+        if result.inserted_id:
+            logger.info(f"Archived task assignment {task_id} to MongoDB")
+            return True
+        else:
+            logger.error(f"Failed to archive task assignment {task_id}")
+            return False
         return True
         
     except Exception as e:
@@ -620,9 +624,9 @@ def handle_task_completion(message: Dict[str, Any], db_changes: Dict[str, Any]) 
             'last_heartbeat': datetime.utcnow().isoformat()
         })
         
-        # Archive completed task
+        # Archive completed task in MongoDB
         if not archive_completed_task(message):
-            logger.warning("Failed to archive task completion")
+            logger.warning("Failed to archive task completion in MongoDB")
             # Non-critical, don't fail the transaction
         
         print(f"✅ TASK COMPLETED: {task_id}")
@@ -722,7 +726,7 @@ def handle_status_update(message: Dict[str, Any], db_changes: Dict[str, Any]) ->
 
 def archive_completed_task(completion_message: Dict[str, Any]) -> bool:
     """
-    Archive the completed task for record keeping.
+    Archive the completed task in MongoDB for record keeping.
     
     Args:
         completion_message: Completion message to archive
@@ -732,20 +736,23 @@ def archive_completed_task(completion_message: Dict[str, Any]) -> bool:
     """
     try:
         task_id = completion_message.get('task_id', 'unknown')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Create archive filename
-        archive_file = f".comms/completed/{task_id}_{timestamp}.json"
+        # Archive in MongoDB's task_archives collection
+        archive_data = {
+            **completion_message,
+            'archived_at': datetime.utcnow(),
+            'archive_type': 'task_completion',
+            'archived_by': 'manager'
+        }
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(archive_file), exist_ok=True)
+        result = state_manager.db.task_archives.insert_one(archive_data)
         
-        # Save completion message
-        with open(archive_file, 'w') as f:
-            json.dump(completion_message, f, indent=2)
-            
-        logger.info(f"Archived completion message to {archive_file}")
-        return True
+        if result.inserted_id:
+            logger.info(f"Archived completion message {task_id} to MongoDB")
+            return True
+        else:
+            logger.error(f"Failed to archive completion message {task_id}")
+            return False
         
     except Exception as e:
         logger.error(f"Error archiving task: {e}")

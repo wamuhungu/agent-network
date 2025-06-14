@@ -319,17 +319,8 @@ else
     echo "⚠️  NOTIFICATION ERROR: $SEND_STATUS"
 fi
 
-# Archive task files from active directory (file system cleanup)
-mkdir -p .comms/completed
-ARCHIVED_TASK=".comms/completed/${TASK_ID}_${COMPLETION_ID}.json"
-
-# Find and archive the original task assignment from active directory
-ACTIVE_TASK_FILE=$(find .comms/active -name "*${TASK_ID}*" -type f 2>/dev/null | head -1)
-if [ -n "$ACTIVE_TASK_FILE" ]; then
-    cp "$ACTIVE_TASK_FILE" "$ARCHIVED_TASK"
-    rm "$ACTIVE_TASK_FILE"
-    echo "$(date -Iseconds) [ARCHIVE] Task file archived: $ARCHIVED_TASK" >> .logs/developer.log
-fi
+# All archiving is now handled in the database
+# No file system operations needed
 
 # Log task completion to local file (backup)
 if [ ! -f .logs/developer.log ]; then
