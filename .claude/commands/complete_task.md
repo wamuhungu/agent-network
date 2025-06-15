@@ -51,7 +51,7 @@ try:
         sys.exit(1)
     
     # Get task from database
-    task = sm.get_task('$TASK_ID')
+    task = sm.get_task_by_id('$TASK_ID')
     if not task:
         print('ERROR:Task not found in database')
         sm.disconnect()
@@ -123,7 +123,7 @@ sys.path.append('tools')
 
 try:
     from state_manager import StateManager
-    from message_broker import send_completion_to_manager
+    from message_broker import MessageBroker
     
     # Parse task info
     task_info = json.loads('$TASK_INFO')
@@ -214,7 +214,7 @@ try:
     })
     
     # Archive task data
-    completed_task = sm.get_task('$TASK_ID')
+    completed_task = sm.get_task_by_id('$TASK_ID')
     if completed_task:
         # Store completion data in archived_tasks collection
         sm.db.archived_tasks.insert_one({
@@ -226,26 +226,32 @@ try:
     
     # Now send to RabbitMQ
     try:
-        success = send_completion_to_manager(completion_message)
-        
-        if success:
-            print('SENT:Success')
+        broker = MessageBroker()
+        if broker.connect():
+            success = broker.send_message('manager-queue', completion_message)
             
-            # Log successful send
-            sm.log_activity('developer', 'completion_sent', {
-                'task_id': '$TASK_ID',
-                'completion_id': '$COMPLETION_ID',
-                'sent_to': 'manager-queue'
-            })
+            if success:
+                print('SENT:Success')
+                
+                # Log successful send
+                sm.log_activity('developer', 'completion_sent', {
+                    'task_id': '$TASK_ID',
+                    'completion_id': '$COMPLETION_ID',
+                    'sent_to': 'manager-queue'
+                })
+            else:
+                # If send fails, log but don't rollback database
+                print('SENT:Failed')
+                
+                sm.log_activity('developer', 'completion_send_failed', {
+                    'task_id': '$TASK_ID',
+                    'completion_id': '$COMPLETION_ID',
+                    'error': 'Failed to send to RabbitMQ'
+                })
+            
+            broker.disconnect()
         else:
-            # If send fails, log but don't rollback database
-            print('SENT:Failed')
-            
-            sm.log_activity('developer', 'completion_send_failed', {
-                'task_id': '$TASK_ID',
-                'completion_id': '$COMPLETION_ID',
-                'error': 'Failed to send to RabbitMQ'
-            })
+            print('SENT:Failed to connect to broker')
             
     except Exception as e:
         print(f'SENT:Error:{e}')
