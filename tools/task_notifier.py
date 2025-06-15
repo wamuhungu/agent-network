@@ -43,15 +43,30 @@ def send_task_completion_notification(
             print("Failed to connect to message broker")
             return False
         
-        # Create completion message
+        # Create completion message matching manager's expected format
         message = {
-            "type": "task_completed",
+            "message_type": "task_completion",  # Changed from "type" to "message_type" and "task_completed" to "task_completion"
             "task_id": task_id,
-            "completed_by": completed_by,
-            "completion_time": datetime.utcnow().isoformat(),
-            "deliverables": deliverables,
-            "summary": summary,
+            "from_agent": completed_by,  # Changed from "completed_by" to "from_agent"
+            "to_agent": "manager",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "completed",
+            "completion": {
+                "completed_at": datetime.utcnow().isoformat(),
+                "summary": summary,
+                "deliverables_status": {
+                    "implementation": "completed",
+                    "tests": "completed",
+                    "documentation": "completed",
+                    "code_review": "ready"
+                },
+                "notes": f"Task completed with {len(deliverables)} deliverables",
+                "files_created": deliverables,
+                "duration": "N/A"
+            },
             "metadata": {
+                "completed_by": completed_by,
+                "deliverables": deliverables,
                 "notification_sent": datetime.utcnow().isoformat(),
                 "source": "task_notifier"
             }
@@ -104,15 +119,18 @@ def send_task_status_update(
             print("Failed to connect to message broker")
             return False
         
-        # Create status update message
+        # Create status update message matching expected format
         message = {
-            "type": "task_status_update",
+            "message_type": "task_status_update",  # Changed from "type" to "message_type"
             "task_id": task_id,
+            "from_agent": agent_id,  # Changed from "updated_by" to "from_agent"
+            "to_agent": "manager",
+            "timestamp": datetime.utcnow().isoformat(),
             "new_status": new_status,
-            "updated_by": agent_id,
-            "update_time": datetime.utcnow().isoformat(),
             "details": details or {},
             "metadata": {
+                "updated_by": agent_id,
+                "update_time": datetime.utcnow().isoformat(),
                 "notification_sent": datetime.utcnow().isoformat(),
                 "source": "task_notifier"
             }
