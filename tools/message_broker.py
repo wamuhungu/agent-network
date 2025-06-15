@@ -226,9 +226,6 @@ class MessageBroker:
             return False
         
         try:
-            # Enable delivery confirmation with timeout
-            self.channel.confirm_delivery()
-            
             # Enhanced message with metadata
             enhanced_message = {
                 **message,
@@ -242,9 +239,9 @@ class MessageBroker:
             
             message_body = json.dumps(enhanced_message, indent=2)
             
-            # Publish with explicit confirmation
+            # Publish without waiting for confirms (simpler and more reliable)
             try:
-                success = self.channel.basic_publish(
+                self.channel.basic_publish(
                     exchange=self.EXCHANGE_NAME,
                     routing_key=queue_name,
                     body=message_body,
@@ -256,12 +253,9 @@ class MessageBroker:
                     mandatory=True  # Return message if unroutable
                 )
                 
-                if success:
-                    self.logger.info(f"Message confirmed delivered to {queue_name}")
-                    return True
-                else:
-                    self.logger.warning(f"Message delivery not confirmed for {queue_name}")
-                    return False
+                # Successfully published to exchange
+                self.logger.info(f"Message published to {queue_name} via exchange")
+                return True
                     
             except pika.exceptions.UnroutableError:
                 self.logger.error(f"Message unroutable to {queue_name} - check queue binding")

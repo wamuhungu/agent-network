@@ -75,12 +75,13 @@ def handle_task_assignment(message):
             # Archive task assignment
             archive_task_assignment(message)
             
-            # Log assignment
-            logger.info(f"Task {task_id} assigned by {from_agent}")
+            # Log notification receipt
+            logger.info(f"Task notification received: {task_id} from {from_agent}")
             
-            print(f"📋 NEW TASK ASSIGNED: {task_id}")
-            print(f"   Assigned by: {from_agent}")
+            print(f"📨 TASK NOTIFICATION RECEIVED: {task_id}")
+            print(f"   From: {from_agent}")
             print(f"   Priority: {priority}")
+            print(f"   Status: Notification delivered - task available for pickup")
             
             # Display task details
             description = task.get('description', 'No description provided')
@@ -104,18 +105,18 @@ def handle_task_assignment(message):
         logger.error(f"Error handling message: {e}")
 
 def update_developer_status(task_message):
-    """Update developer status with new task assignment."""
+    """Update developer status with new task notification."""
     try:
         # Use StateManager to update status in MongoDB
         sm = StateManager()
         
         task_id = task_message.get('task_id')
         
-        # Update task status to in_progress
-        sm.update_task_state(task_id, 'in_progress')
+        # DO NOT update task status - leave as 'pending' for developer to pick up
+        # Only log that the notification was received
         
         # Log activity
-        sm.log_activity('developer', 'task_received', {
+        sm.log_activity('developer', 'task_notification_received', {
             'task_id': task_id,
             'assigned_by': task_message.get('from_agent'),
             'assigned_at': task_message.get('timestamp'),

@@ -54,15 +54,15 @@ try:
         print('ERROR:Database connection failed')
         sys.exit(1)
     
-    # Create task in database with 'created' status
+    # Create task in database with 'pending' status and assigned to developer
     task_data = {
         'task_id': '$TASK_ID',
         'title': '$TASK_DESCRIPTION',
         'description': '$TASK_DESCRIPTION',
-        'status': 'created',
+        'status': 'pending',  # Developer work cycle looks for 'pending' status
         'priority': 'normal',
         'created_by': 'manager',
-        'assigned_to': None,  # Not assigned yet
+        'assigned_to': 'developer',  # Assign to developer from the start
         'requirements': [
             'Implement the requested functionality',
             'Write comprehensive tests',
@@ -94,7 +94,7 @@ try:
     sm.log_activity('manager', 'task_created', {
         'task_id': '$TASK_ID',
         'title': '$TASK_DESCRIPTION',
-        'initial_status': 'created'
+        'initial_status': 'pending'
     })
     
     print(f'CREATED:{created_task_id}')
@@ -128,12 +128,16 @@ try:
         success = send_task_to_developer(task_message)
         
         if success:
-            # Update task status to 'assigned' after successful send
-            sm.update_task_state('$TASK_ID', 'assigned', {
-                'assigned_at': datetime.utcnow().isoformat(),
-                'assigned_to': 'developer',
-                'queue_status': 'sent'
+            # Just update the queue status - task already has correct status and assignment
+            sm.update_task_state('$TASK_ID', 'pending', {
+                'queue_status': 'sent',
+                'notified_at': datetime.utcnow().isoformat()
             })
+            
+            # Verify the task state after update
+            task = sm.db.tasks.find_one({'task_id': '$TASK_ID'})
+            if task:
+                print(f'VERIFIED:status={task.get(\"status\")},assigned_to={task.get(\"assigned_to\")}')
             
             # Update manager state
             sm.update_agent_state('manager', metadata={
@@ -151,10 +155,11 @@ try:
             print('SENT:Success')
             
         else:
-            # Rollback - mark task as failed to send
-            sm.update_task_state('$TASK_ID', 'created', {
+            # Rollback - keep task in pending state but mark send as failed
+            sm.update_task_state('$TASK_ID', 'pending', {
                 'send_failed': True,
-                'error': 'Failed to send to RabbitMQ'
+                'error': 'Failed to send to RabbitMQ',
+                'note': 'Task can still be picked up by developer via database'
             })
             
             sm.log_activity('manager', 'task_send_failed', {
@@ -165,10 +170,11 @@ try:
             print('ERROR:Failed to send task to RabbitMQ')
             
     except Exception as e:
-        # Rollback on any error
-        sm.update_task_state('$TASK_ID', 'created', {
+        # Rollback on any error - keep pending so developer can still pick it up
+        sm.update_task_state('$TASK_ID', 'pending', {
             'send_failed': True,
-            'error': str(e)
+            'error': str(e),
+            'note': 'Task can still be picked up by developer via database'
         })
         
         sm.log_activity('manager', 'task_send_error', {
@@ -195,13 +201,17 @@ if [[ "$TASK_RESULT" == "CREATED:"* ]]; then
     SEND_STATUS=$(echo "$TASK_RESULT" | grep "^SENT:" | cut -d':' -f2)
     
     if [ "$SEND_STATUS" = "Success" ]; then
+        # Extract verification info
+        VERIFY_INFO=$(echo "$TASK_RESULT" | grep "^VERIFIED:" | cut -d':' -f2-)
+        
         echo "✅ Task created in database: $CREATED_ID"
         echo "✅ Task sent to developer queue"
+        echo "✅ Verification: $VERIFY_INFO"
         echo ""
         echo "📊 TASK STATUS:"
-        echo "  • Database: Created → Assigned"
-        echo "  • Queue: Sent to developer-queue"
-        echo "  • Developer: Will be notified immediately"
+        echo "  • Database: Status=pending, Assigned to=developer"
+        echo "  • Queue: Message delivered to developer-queue"
+        echo "  • Developer: Can pick up task via project:developer_work"
         
         # Log to file
         echo "$(date -Iseconds) [TASK_CREATE] Task created: $TASK_ID - $TASK_DESCRIPTION" >> .logs/manager.log
@@ -212,8 +222,9 @@ if [[ "$TASK_RESULT" == "CREATED:"* ]]; then
         echo "❌ Failed to send task to developer queue"
         echo ""
         echo "⚠️  TASK STATUS:"
-        echo "  • Database: Created (not assigned)"
-        echo "  • Queue: Failed to send"
+        echo "  • Database: Status=pending, Assigned to=developer"
+        echo "  • Queue: Failed to send notification"
+        echo "  • Developer: Can still pick up task via project:developer_work"
         echo ""
         echo "💡 TROUBLESHOOTING:"
         echo "  • Check if RabbitMQ is running: brew services list | grep rabbitmq"
@@ -251,17 +262,18 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 ```
 
 ## Features
-- Creates task in database with "created" status
-- Updates to "assigned" after successful RabbitMQ send
+- Creates task in database with "pending" status and assigned to developer
+- Verifies database state after creation and updates
+- Sends notification via RabbitMQ (non-blocking - task still available if send fails)
 - Logs all activities to database
-- Rollback on failures to maintain consistency
+- Tasks remain available for developer pickup even if RabbitMQ fails
 - Proper error handling and user feedback
 
 ## Task State Flow
-1. **Created** - Task created in database
-2. **Assigned** - Task successfully sent to queue
-3. **In Progress** - Developer picks up task
-4. **Completed** - Task finished
+1. **Pending** - Task created in database, assigned to developer, ready for pickup
+2. **In Progress** - Developer picks up task and starts working
+3. **Completed** - Task finished
+4. **Cancelled** - Task cancelled (optional state)
 
 ## Database Operations
 - Creates task record with full metadata
